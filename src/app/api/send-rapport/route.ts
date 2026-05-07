@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 const LEAD_INBOX = "nathan@thynk-agency.com";
 
 function fmt(n: number) {
@@ -104,6 +103,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Ontbrekende velden" }, { status: 400 });
     }
 
+    const resend = new Resend(process.env.RESEND_API_KEY ?? "");
     const { adres, gemeente, html } = buildEmail(email, listing, prijs);
     const subject = `Uw property analyse — ${adres}, ${gemeente}`;
 
