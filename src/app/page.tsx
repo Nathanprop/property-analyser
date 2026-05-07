@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { VolleAnalyse } from "./volledige-analyse";
 
 interface PrijsAnalyse {
   oordeel: string;
@@ -34,15 +35,32 @@ function fmt(n: number) {
   return new Intl.NumberFormat("nl-BE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n);
 }
 
+function isVlaanderen(postalCode: string | null): boolean {
+  if (!postalCode) return false;
+  const pc = parseInt(postalCode, 10);
+  return (pc >= 1500 && pc <= 3999) || (pc >= 8000 && pc <= 9999);
+}
+
+const KLEUREN = {
+  groen:  { bar: "#22c55e", text: "#166534", bg: "#f0fdf4", border: "#bbf7d0" },
+  oranje: { bar: "#f59e0b", text: "#d97706", bg: "#fffbeb", border: "#fde68a" },
+  rood:   { bar: "#ef4444", text: "#dc2626", bg: "#fef2f2", border: "#fecaca" },
+};
+
 export default function Home() {
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AnalyseResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showVolleAnalyse, setShowVolleAnalyse] = useState(false);
+  const [showEmailForm, setShowEmailForm] = useState(false);
+  const [emailInput, setEmailInput] = useState("");
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
 
   async function analyseer() {
     if (!url.trim()) return;
-    setLoading(true); setError(null); setResult(null);
+    setLoading(true); setError(null); setResult(null); setShowVolleAnalyse(false); setShowEmailForm(false); setEmailSent(false); setEmailInput("");
     try {
       const res = await fetch("/api/analyse", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: url.trim() }) });
       const data = await res.json();
@@ -52,34 +70,54 @@ export default function Home() {
     finally { setLoading(false); }
   }
 
+  async function sendEmail() {
+    if (!emailInput.trim() || !result?.analyse?.prijs || !result?.listing) return;
+    setEmailSending(true);
+    try {
+      await fetch("/api/send-rapport", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: emailInput.trim(), listing: result.listing, prijs: result.analyse.prijs }),
+      });
+    } catch {}
+    setEmailSending(false);
+    setEmailSent(true);
+    setShowVolleAnalyse(true);
+  }
+
   const prijs = result?.analyse?.prijs;
   const listing = result?.listing;
-  const kleurMap = {
-    groen: { bg: "#f0fdf4", border: "#86efac", text: "#166534", badge: "#dcfce7" },
-    oranje: { bg: "#fffbeb", border: "#fcd34d", text: "#92400e", badge: "#fef3c7" },
-    rood: { bg: "#fef2f2", border: "#fca5a5", text: "#991b1b", badge: "#fee2e2" },
-  };
-  const kleur = prijs ? kleurMap[prijs.oordeelKleur] : null;
+  const kleur = prijs ? KLEUREN[prijs.oordeelKleur] : null;
 
   return (
-    <main style={{ minHeight: "100vh", background: "#0D1B3E", fontFamily: "system-ui, sans-serif" }}>
-      <div style={{ background: "#0D1B3E", borderBottom: "3px solid #E8A020", padding: "20px 24px" }}>
-        <div style={{ maxWidth: 720, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+    <main style={{ minHeight: "100vh", background: "#f1f5fb", fontFamily: "system-ui, sans-serif" }}>
+
+      {/* Header */}
+      <div style={{ background: "#0f1d45", borderBottom: "1px solid rgba(255,255,255,0.08)", padding: "18px 24px" }}>
+        <div style={{ maxWidth: 760, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
-            <div style={{ fontSize: 22, fontWeight: 500, color: "#fff" }}>Property Analyser</div>
-            <div style={{ fontSize: 13, color: "#94a3b8", marginTop: 2 }}>Eerlijke vastgoedanalyse</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: "#fff", letterSpacing: "-0.3px" }}>Property Analyser</div>
+            <div style={{ fontSize: 12, color: "#93afd4", marginTop: 2 }}>Eerlijke vastgoedanalyse</div>
           </div>
-          <div style={{ fontSize: 11, color: "#E8A020", background: "#1e3a5f", padding: "4px 10px", borderRadius: 20 }}>BETA</div>
+          <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.75)", background: "rgba(255,255,255,0.1)", padding: "4px 12px", borderRadius: 20, letterSpacing: "0.07em", border: "1px solid rgba(255,255,255,0.15)" }}>BETA</div>
         </div>
       </div>
 
-      <div style={{ background: "#0D1B3E", padding: "40px 24px 32px" }}>
-        <div style={{ maxWidth: 720, margin: "0 auto" }}>
-          <div style={{ fontSize: 28, fontWeight: 500, color: "#fff", marginBottom: 8 }}>Weet wat het echt waard is.</div>
-          <div style={{ fontSize: 15, color: "#94a3b8", marginBottom: 28 }}>Plak een link van Immoweb, Zimmo of Realo — eerlijke analyse in seconden.</div>
+      {/* Input zone */}
+      <div style={{ background: "linear-gradient(160deg, #0f1d45 0%, #1a3366 100%)", padding: "56px 24px 48px" }}>
+        <div style={{ maxWidth: 760, margin: "0 auto" }}>
+          <div style={{ fontSize: 32, fontWeight: 800, color: "#fff", marginBottom: 10, letterSpacing: "-0.5px", lineHeight: 1.2 }}>Weet wat het echt waard is.</div>
+          <div style={{ fontSize: 15, color: "#93afd4", marginBottom: 32 }}>Plak een link van Immoweb, Zimmo of Realo — eerlijke analyse in seconden.</div>
           <div style={{ display: "flex", gap: 10 }}>
-            <input type="text" value={url} onChange={e => setUrl(e.target.value)} onKeyDown={e => e.key === "Enter" && analyseer()} placeholder="https://www.immoweb.be/nl/zoekertje/..." style={{ flex: 1, padding: "14px 16px", fontSize: 14, background: "#1e3a5f", border: "1px solid #2d4f7c", borderRadius: 10, color: "#fff", outline: "none" }} />
-            <button onClick={analyseer} disabled={loading || !url.trim()} style={{ padding: "14px 24px", fontSize: 14, fontWeight: 500, background: loading ? "#2d4f7c" : "#E8A020", color: loading ? "#94a3b8" : "#0D1B3E", border: "none", borderRadius: 10, cursor: loading ? "not-allowed" : "pointer" }}>
+            <input
+              type="text" value={url}
+              onChange={e => setUrl(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && analyseer()}
+              placeholder="https://www.immoweb.be/nl/zoekertje/..."
+              style={{ flex: 1, padding: "15px 18px", fontSize: 14, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.18)", borderRadius: 12, color: "#fff", outline: "none" }}
+            />
+            <button onClick={analyseer} disabled={loading || !url.trim()}
+              style={{ padding: "15px 28px", fontSize: 14, fontWeight: 700, background: loading ? "rgba(255,255,255,0.08)" : "#fff", color: loading ? "#64748b" : "#0f1d45", border: "none", borderRadius: 12, cursor: loading ? "not-allowed" : "pointer", whiteSpace: "nowrap" }}>
               {loading ? "Analyseren..." : "Analyseer →"}
             </button>
           </div>
@@ -87,59 +125,186 @@ export default function Home() {
         </div>
       </div>
 
-      {result && prijs && listing && (
-        <div style={{ background: "#f8fafc", minHeight: "60vh", padding: "32px 24px" }}>
-          <div style={{ maxWidth: 720, margin: "0 auto" }}>
-            <div style={{ background: kleur!.bg, border: `1.5px solid ${kleur!.border}`, borderRadius: 14, padding: "24px 28px", marginBottom: 16 }}>
-              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-                <div>
-                  <div style={{ fontSize: 13, color: "#64748b", marginBottom: 6 }}>{listing.propertyType ?? "Pand"} in {prijs.gemeente} {listing.postalCode ? `(${listing.postalCode})` : ""}</div>
-                  <div style={{ fontSize: 26, fontWeight: 500, color: kleur!.text, marginBottom: 4 }}>{prijs.oordeelLabel}</div>
-                  <div style={{ fontSize: 14, color: "#475569" }}>{prijs.advies}</div>
-                </div>
-                <div style={{ background: kleur!.badge, border: `1px solid ${kleur!.border}`, borderRadius: 10, padding: "12px 20px", textAlign: "center" }}>
-                  <div style={{ fontSize: 28, fontWeight: 500, color: kleur!.text }}>{prijs.verschilPercent > 0 ? "+" : ""}{prijs.verschilPercent}%</div>
-                  <div style={{ fontSize: 12, color: "#64748b" }}>vs. markt</div>
-                </div>
-              </div>
-            </div>
+      {/* Loading */}
+      {loading && (
+        <div style={{ background: "#f4f5f8", padding: "80px 24px", textAlign: "center" }}>
+          <div style={{ fontSize: 15, color: "#64748b" }}>Analyseren... even geduld</div>
+        </div>
+      )}
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12, marginBottom: 16 }}>
-              {[
-                { label: "Vraagprijs", value: fmt(prijs.vraagprijs), sub: null },
-                { label: "Marktwaarde", value: fmt(prijs.marktconformePrijs), sub: `${fmt(prijs.minimumPrijs)} – ${fmt(prijs.maximumPrijs)}` },
-                { label: "Verschil", value: fmt(Math.abs(prijs.verschilBedrag)), sub: prijs.verschilBedrag > 0 ? "te duur" : "te goedkoop" },
-                ...(prijs.prijsPerM2 ? [{ label: "Prijs per m²", value: `€${prijs.prijsPerM2.toLocaleString("nl-BE")}`, sub: `markt: €${prijs.marktPrijsPerM2.toLocaleString("nl-BE")}` }] : []),
-              ].map((item, i) => (
-                <div key={i} style={{ background: "#fff", border: "0.5px solid #e2e8f0", borderRadius: 10, padding: "14px 16px" }}>
-                  <div style={{ fontSize: 12, color: "#64748b", marginBottom: 4 }}>{item.label}</div>
-                  <div style={{ fontSize: 18, fontWeight: 500, color: "#0f172a" }}>{item.value}</div>
-                  {item.sub && <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>{item.sub}</div>}
-                </div>
-              ))}
-            </div>
-
-            {prijs.biedingsadvies && prijs.biedingsbandbreedte && (
-              <div style={{ background: "#0D1B3E", borderRadius: 10, padding: "16px 20px", marginBottom: 16 }}>
-                <div style={{ fontSize: 13, fontWeight: 500, color: "#E8A020", marginBottom: 6 }}>Biedingsadvies</div>
-                <div style={{ fontSize: 15, color: "#fff", marginBottom: 4 }}>{prijs.biedingsadvies}</div>
-                <div style={{ fontSize: 12, color: "#94a3b8" }}>Bandbreedte: {fmt(prijs.biedingsbandbreedte.min)} – {fmt(prijs.biedingsbandbreedte.max)}</div>
-              </div>
-            )}
-
-            <div style={{ fontSize: 11, color: "#94a3b8", textAlign: "center", paddingTop: 8 }}>
-              Betrouwbaarheid: {prijs.betrouwbaarheid} — indicatief, niet bindend
+      {/* Error: geen analyse mogelijk */}
+      {result && !prijs && listing && (
+        <div style={{ background: "#f4f5f8", padding: "32px 24px" }}>
+          <div style={{ maxWidth: 760, margin: "0 auto" }}>
+            <div style={{ background: "#fef2f2", border: "1.5px solid #fecaca", borderRadius: 16, padding: "28px" }}>
+              <div style={{ fontSize: 16, fontWeight: 700, color: "#991b1b", marginBottom: 8 }}>Analyse niet mogelijk</div>
+              <div style={{ fontSize: 14, color: "#7f1d1d", marginBottom: 12 }}>De pagina werd geladen maar de nodige data kon niet worden uitgelezen.</div>
+              <ul style={{ fontSize: 13, color: "#991b1b", paddingLeft: 20, margin: "0 0 16px" }}>
+                {listing.warnings.length > 0
+                  ? listing.warnings.map((w, i) => <li key={i} style={{ marginBottom: 4 }}>{w}</li>)
+                  : <li>Onbekende fout bij het uitlezen van de listing</li>}
+              </ul>
+              <div style={{ fontSize: 12, color: "#64748b" }}>Probeer een andere listing of controleer of de URL correct is.</div>
             </div>
           </div>
         </div>
       )}
 
-      {loading && <div style={{ background: "#f8fafc", padding: "60px 24px", textAlign: "center" }}><div style={{ fontSize: 15, color: "#64748b" }}>Analyseren...</div></div>}
+      {/* Analyseresultaten */}
+      {result && prijs && listing && kleur && (
+        <div style={{ background: "#f4f5f8", padding: "32px 24px" }}>
+          <div style={{ maxWidth: 760, margin: "0 auto" }}>
 
+            {/* Verdict card */}
+            <div style={{ background: kleur.bg, border: `2px solid ${kleur.border}`, borderRadius: 20, padding: "28px 32px", marginBottom: 14, position: "relative" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10 }}>
+                {(listing.propertyType ?? "Pand").toUpperCase()} IN {prijs.gemeente.toUpperCase()}{listing.postalCode ? ` (${listing.postalCode})` : ""}
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 20 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 28, fontWeight: 800, color: kleur.text, marginBottom: 10, letterSpacing: "-0.5px" }}>{prijs.oordeelLabel}</div>
+                  <div style={{ fontSize: 14, color: "#374151", lineHeight: 1.65 }}>{prijs.advies}</div>
+                </div>
+                <div style={{ width: 84, height: 84, borderRadius: "50%", border: `3px solid ${kleur.text}`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <div style={{ fontSize: 19, fontWeight: 800, color: kleur.text, lineHeight: 1 }}>{prijs.verschilPercent > 0 ? "+" : ""}{prijs.verschilPercent}%</div>
+                  <div style={{ fontSize: 10, color: "#64748b", marginTop: 3 }}>vs. markt</div>
+                </div>
+              </div>
+              {/* Price range bar */}
+              {(() => {
+                const range = prijs.maximumPrijs - prijs.minimumPrijs;
+                const pct = range > 0 ? Math.min(93, Math.max(7, ((prijs.vraagprijs - prijs.minimumPrijs) / range) * 100)) : 50;
+                return (
+                  <div style={{ marginTop: 24 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#64748b", marginBottom: 10 }}>
+                      <span>Min. {fmt(prijs.minimumPrijs)}</span>
+                      <span style={{ fontWeight: 700, color: kleur.text }}>Vraagprijs {fmt(prijs.vraagprijs)}</span>
+                      <span>Max. {fmt(prijs.maximumPrijs)}</span>
+                    </div>
+                    <div style={{ position: "relative", height: 8, borderRadius: 4, background: "#e2e8f0" }}>
+                      <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${pct}%`, background: kleur.bar, borderRadius: 4 }} />
+                      <div style={{ position: "absolute", top: "50%", left: `${pct}%`, transform: "translate(-50%, -50%)", width: 20, height: 20, borderRadius: "50%", background: "#fff", border: `3px solid ${kleur.text}`, boxShadow: "0 1px 4px rgba(0,0,0,0.15)" }} />
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* 4 stat cards */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12, marginBottom: 12 }}>
+              {[
+                { icon: "💰", label: "VRAAGPRIJS",   value: fmt(prijs.vraagprijs),             sub: null },
+                { icon: "📊", label: "MARKTWAARDE",  value: fmt(prijs.marktconformePrijs),      sub: `${fmt(prijs.minimumPrijs)} – ${fmt(prijs.maximumPrijs)}` },
+                { icon: "↕",  label: "VERSCHIL",     value: fmt(Math.abs(prijs.verschilBedrag)), sub: prijs.verschilBedrag > 0 ? "te duur" : "te goedkoop" },
+                ...(prijs.prijsPerM2 ? [{ icon: "📐", label: "PRIJS/M²", value: `€ ${prijs.prijsPerM2.toLocaleString("nl-BE")}`, sub: `markt: €${prijs.marktPrijsPerM2.toLocaleString("nl-BE")}` }] : []),
+              ].map((item, i) => (
+                <div key={i} style={{ background: "#fff", border: "0.5px solid #e8eaf0", borderRadius: 14, padding: "16px 18px", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", letterSpacing: "0.07em", marginBottom: 6 }}>{item.icon} {item.label}</div>
+                  <div style={{ fontSize: 22, fontWeight: 700, color: "#0f172a" }}>{item.value}</div>
+                  {item.sub && <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>{item.sub}</div>}
+                </div>
+              ))}
+            </div>
+
+            {/* Betrouwbaarheid */}
+            <div style={{ background: "#fff", border: "0.5px solid #e8eaf0", borderRadius: 12, padding: "12px 18px", marginBottom: 14, display: "flex", alignItems: "center", gap: 10, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+              <div style={{ display: "flex", gap: 5 }}>
+                {[0, 1, 2].map(i => (
+                  <div key={i} style={{ width: 10, height: 10, borderRadius: "50%", background: i < (prijs.betrouwbaarheid === "hoog" ? 3 : prijs.betrouwbaarheid === "midden" ? 2 : 1) ? kleur.text : "#e2e8f0" }} />
+                ))}
+              </div>
+              <div style={{ fontSize: 13, color: "#64748b" }}>
+                Betrouwbaarheid: <strong style={{ color: "#374151" }}>{prijs.betrouwbaarheid}</strong> — indicatief, niet bindend
+              </div>
+            </div>
+
+            {/* Wettelijke Check */}
+            {(() => {
+              const epc = (listing.epcLabel ?? prijs.epcLabel ?? "").toUpperCase().trim();
+              if (!["E", "F"].includes(epc) || !isVlaanderen(listing.postalCode)) return null;
+              const deadline = new Date().getFullYear() + 6;
+              return (
+                <div style={{ background: "#fffbeb", border: "1.5px solid #fde68a", borderRadius: 14, padding: "16px 20px", marginBottom: 14, display: "flex", gap: 12, alignItems: "flex-start" }}>
+                  <span style={{ fontSize: 20, flexShrink: 0 }}>⚠️</span>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: "#92400e", marginBottom: 4 }}>Wettelijke renovatieplicht (Vlaanderen)</div>
+                    <div style={{ fontSize: 13, color: "#78350f", lineHeight: 1.6 }}>
+                      Let op: Voor dit pand (EPC {epc}) geldt een renovatieplicht tot minimaal label D voor <strong>{deadline}</strong>. U heeft 6 jaar na aankoop om te renoveren — verplicht door VEKA.
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Onderhandelingstip */}
+            {(() => {
+              const bidPrijs = Math.round(Math.min(prijs.vraagprijs, prijs.marktconformePrijs) * 0.965 / 1000) * 1000;
+              const tekst = prijs.verschilPercent > 5
+                ? `Op basis van de overwaardering van +${prijs.verschilPercent}% is er duidelijke onderhandelingsruimte. Bied:`
+                : prijs.verschilPercent > 0
+                ? `Op basis van de lichte overwaardering is er beperkte onderhandelingsruimte. Bied:`
+                : `Op basis van de marktafwijking van ${prijs.verschilPercent}% is er beperkte ruimte om te onderhandelen. Bied:`;
+              return (
+                <div style={{ background: "#0D1B3E", borderRadius: 16, padding: "24px 28px", marginBottom: 14 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                    <span style={{ fontSize: 22 }}>🤝</span>
+                    <span style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>Onderhandelingstip</span>
+                  </div>
+                  <div style={{ fontSize: 13, color: "#94a3b8", marginBottom: 12 }}>{tekst}</div>
+                  <div style={{ fontSize: 38, fontWeight: 800, color: "#60a5fa" }}>€ {bidPrijs.toLocaleString("nl-BE")}</div>
+                </div>
+              );
+            })()}
+
+            {/* CTA + Email capture */}
+            <div style={{ background: "linear-gradient(160deg, #0f1d45 0%, #1a3366 100%)", borderRadius: 16, padding: "30px 32px", textAlign: "center" }}>
+              <div style={{ fontSize: 22, fontWeight: 800, color: "#fff", marginBottom: 8 }}>Wil je een volledige analyse?</div>
+              <div style={{ fontSize: 14, color: "#93afd4", marginBottom: 22 }}>Renovatiekosten, rentabiliteit, hypotheek en onderhandelingsadvies — gratis in uw mailbox.</div>
+
+              {!showEmailForm && !showVolleAnalyse && (
+                <button onClick={() => setShowEmailForm(true)}
+                  style={{ padding: "15px 40px", fontSize: 15, fontWeight: 700, background: "#fff", color: "#0f1d45", border: "none", borderRadius: 12, cursor: "pointer" }}>
+                  Start volledige analyse →
+                </button>
+              )}
+
+              {showEmailForm && !emailSent && (
+                <div style={{ display: "flex", gap: 10, maxWidth: 460, margin: "0 auto" }}>
+                  <input
+                    type="email" value={emailInput}
+                    onChange={e => setEmailInput(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && sendEmail()}
+                    placeholder="uw@emailadres.be"
+                    style={{ flex: 1, padding: "14px 16px", fontSize: 14, borderRadius: 10, border: "none", outline: "none", color: "#0f172a" }}
+                  />
+                  <button onClick={sendEmail} disabled={emailSending || !emailInput.trim()}
+                    style={{ padding: "14px 22px", fontSize: 14, fontWeight: 700, background: emailSending ? "#64748b" : "#3b82f6", color: "#fff", border: "none", borderRadius: 10, cursor: emailSending ? "not-allowed" : "pointer", whiteSpace: "nowrap" }}>
+                    {emailSending ? "Versturen..." : "Ontvang analyse →"}
+                  </button>
+                </div>
+              )}
+
+              {emailSent && (
+                <div style={{ fontSize: 14, color: "#93afd4" }}>
+                  ✅ Analyse verstuurd naar <strong style={{ color: "#fff" }}>{emailInput}</strong>
+                </div>
+              )}
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* Volledige analyse */}
+      {result && prijs && listing && showVolleAnalyse && (
+        <VolleAnalyse listing={listing} prijs={prijs} />
+      )}
+
+      {/* Footer */}
       {!result && !loading && (
-        <div style={{ padding: "48px 24px", textAlign: "center" }}>
-          <div style={{ fontSize: 13, color: "#475569" }}>Ondersteunt Immoweb · Zimmo · Realo · ERA</div>
-          <div style={{ fontSize: 11, color: "#334155", marginTop: 8 }}>Een initiatief van Vastgoed Lead Factory · nathan@thynk-agency.com</div>
+        <div style={{ padding: "48px 24px", textAlign: "center", borderTop: "1px solid #e2e8f0", background: "#fff" }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#64748b", letterSpacing: "0.06em", textTransform: "uppercase" }}>Ondersteunt Immoweb · Zimmo · Realo</div>
+          <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 8 }}>Een initiatief van Vastgoed Lead Factory · nathan@thynk-agency.com</div>
         </div>
       )}
     </main>
