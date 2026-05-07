@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { VolleAnalyse } from "./volledige-analyse";
+import { useIsMobile } from "@/lib/use-is-mobile";
 
 interface PrijsAnalyse {
   oordeel: string;
@@ -53,6 +54,7 @@ export default function Home() {
   const [result, setResult] = useState<AnalyseResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showVolleAnalyse, setShowVolleAnalyse] = useState(false);
+  const isMobile = useIsMobile();
   const [showEmailForm, setShowEmailForm] = useState(false);
   const [emailInput, setEmailInput] = useState("");
   const [emailSending, setEmailSending] = useState(false);
@@ -104,11 +106,11 @@ export default function Home() {
       </div>
 
       {/* Input zone */}
-      <div style={{ background: "linear-gradient(160deg, #0f1d45 0%, #1a3366 100%)", padding: "56px 24px 48px" }}>
+      <div style={{ background: "linear-gradient(160deg, #0f1d45 0%, #1a3366 100%)", padding: isMobile ? "36px 16px 32px" : "56px 24px 48px" }}>
         <div style={{ maxWidth: 760, margin: "0 auto" }}>
-          <div style={{ fontSize: 32, fontWeight: 800, color: "#fff", marginBottom: 10, letterSpacing: "-0.5px", lineHeight: 1.2 }}>Weet wat het echt waard is.</div>
-          <div style={{ fontSize: 15, color: "#93afd4", marginBottom: 32 }}>Plak een link van Immoweb, Zimmo of Realo — eerlijke analyse in seconden.</div>
-          <div style={{ display: "flex", gap: 10 }}>
+          <div style={{ fontSize: isMobile ? 26 : 32, fontWeight: 800, color: "#fff", marginBottom: 10, letterSpacing: "-0.5px", lineHeight: 1.2 }}>Weet wat het echt waard is.</div>
+          <div style={{ fontSize: isMobile ? 14 : 15, color: "#93afd4", marginBottom: 24 }}>Plak een link van Immoweb, Zimmo of Realo — eerlijke analyse in seconden.</div>
+          <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: 10 }}>
             <input
               type="text" value={url}
               onChange={e => setUrl(e.target.value)}
@@ -152,11 +154,11 @@ export default function Home() {
 
       {/* Analyseresultaten */}
       {result && prijs && listing && kleur && (
-        <div style={{ background: "#f4f5f8", padding: "32px 24px" }}>
+        <div style={{ background: "#f4f5f8", padding: isMobile ? "16px 12px" : "32px 24px" }}>
           <div style={{ maxWidth: 760, margin: "0 auto" }}>
 
             {/* Verdict card */}
-            <div style={{ background: kleur.bg, border: `2px solid ${kleur.border}`, borderRadius: 20, padding: "28px 32px", marginBottom: 14, position: "relative" }}>
+            <div style={{ background: kleur.bg, border: `2px solid ${kleur.border}`, borderRadius: 20, padding: isMobile ? "20px 16px" : "28px 32px", marginBottom: 14, position: "relative" }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10 }}>
                 {(listing.propertyType ?? "Pand").toUpperCase()} IN {prijs.gemeente.toUpperCase()}{listing.postalCode ? ` (${listing.postalCode})` : ""}
               </div>
@@ -165,8 +167,8 @@ export default function Home() {
                   <div style={{ fontSize: 28, fontWeight: 800, color: kleur.text, marginBottom: 10, letterSpacing: "-0.5px" }}>{prijs.oordeelLabel}</div>
                   <div style={{ fontSize: 14, color: "#374151", lineHeight: 1.65 }}>{prijs.advies}</div>
                 </div>
-                <div style={{ width: 84, height: 84, borderRadius: "50%", border: `3px solid ${kleur.text}`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <div style={{ fontSize: 19, fontWeight: 800, color: kleur.text, lineHeight: 1 }}>{prijs.verschilPercent > 0 ? "+" : ""}{prijs.verschilPercent}%</div>
+                <div style={{ width: isMobile ? 68 : 84, height: isMobile ? 68 : 84, borderRadius: "50%", border: `3px solid ${kleur.text}`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <div style={{ fontSize: isMobile ? 15 : 19, fontWeight: 800, color: kleur.text, lineHeight: 1 }}>{prijs.verschilPercent > 0 ? "+" : ""}{prijs.verschilPercent}%</div>
                   <div style={{ fontSize: 10, color: "#64748b", marginTop: 3 }}>vs. markt</div>
                 </div>
               </div>
@@ -245,7 +247,7 @@ export default function Home() {
                 ? `Op basis van de lichte overwaardering is er beperkte onderhandelingsruimte. Bied:`
                 : `Op basis van de marktafwijking van ${prijs.verschilPercent}% is er beperkte ruimte om te onderhandelen. Bied:`;
               return (
-                <div style={{ background: "#0D1B3E", borderRadius: 16, padding: "24px 28px", marginBottom: 14 }}>
+                <div style={{ background: "#0D1B3E", borderRadius: 16, padding: isMobile ? "20px 16px" : "24px 28px", marginBottom: 14 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
                     <span style={{ fontSize: 22 }}>🤝</span>
                     <span style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>Onderhandelingstip</span>
@@ -257,7 +259,7 @@ export default function Home() {
             })()}
 
             {/* CTA + Email capture */}
-            <div style={{ background: "linear-gradient(160deg, #0f1d45 0%, #1a3366 100%)", borderRadius: 16, padding: "30px 32px", textAlign: "center" }}>
+            <div style={{ background: "linear-gradient(160deg, #0f1d45 0%, #1a3366 100%)", borderRadius: 16, padding: isMobile ? "24px 16px" : "30px 32px", textAlign: "center" }}>
               <div style={{ fontSize: 22, fontWeight: 800, color: "#fff", marginBottom: 8 }}>Wil je een volledige analyse?</div>
               <div style={{ fontSize: 14, color: "#93afd4", marginBottom: 22 }}>Renovatiekosten, rentabiliteit, hypotheek en onderhandelingsadvies — gratis in uw mailbox.</div>
 
@@ -269,7 +271,7 @@ export default function Home() {
               )}
 
               {showEmailForm && !emailSent && (
-                <div style={{ display: "flex", gap: 10, maxWidth: 460, margin: "0 auto" }}>
+                <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: 10, maxWidth: 460, margin: "0 auto" }}>
                   <input
                     type="email" value={emailInput}
                     onChange={e => setEmailInput(e.target.value)}

@@ -1,5 +1,6 @@
 "use client";
 import React, { useState } from "react";
+import { useIsMobile } from "@/lib/use-is-mobile";
 
 type Doel = "wonen" | "verhuren" | "meerwaarde";
 
@@ -76,6 +77,7 @@ function InfoBox({ color, children }: { color: "blue" | "yellow" | "green"; chil
 }
 
 export function VolleAnalyse({ listing, prijs }: { listing: ListingProps; prijs: PrijsProps }) {
+  const isMobile = useIsMobile();
   const [selectedDoel, setSelectedDoel] = useState<Doel | null>(null);
   const [doel, setDoel] = useState<Doel | null>(null);
   const [epcOverride, setEpcOverride] = useState<string | null>(null);
@@ -130,18 +132,18 @@ export function VolleAnalyse({ listing, prijs }: { listing: ListingProps; prijs:
   // Doel selectie scherm
   if (!doel) {
     return (
-      <div style={{ background: "#f4f5f8", padding: "48px 24px" }}>
+      <div style={{ background: "#f4f5f8", padding: isMobile ? "24px 12px" : "48px 24px" }}>
         <div style={{ maxWidth: 760, margin: "0 auto" }}>
 
-          <div style={{ textAlign: "center", marginBottom: 36 }}>
-            <div style={{ fontSize: 34, fontWeight: 800, color: "#0D1B3E", marginBottom: 12, letterSpacing: "-0.5px" }}>
+          <div style={{ textAlign: "center", marginBottom: 28 }}>
+            <div style={{ fontSize: isMobile ? 24 : 34, fontWeight: 800, color: "#0D1B3E", marginBottom: 12, letterSpacing: "-0.5px" }}>
               Wat is uw doel met deze aankoop?
             </div>
             <div style={{ fontSize: 15, color: "#64748b" }}>We passen de analyse volledig aan op uw situatie</div>
           </div>
 
           {/* Keuzekaarten */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 20 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: 12, marginBottom: 20 }}>
             {([
               { key: "wonen"      as const, icon: "🏠", label: "Zelf inwonen",  sub: "Energiezuinigheid, renovatiekosten & subsidies" },
               { key: "verhuren"   as const, icon: "📈", label: "Verhuren",      sub: "Huurprijs, rendement & exploitatiekosten" },
@@ -149,14 +151,16 @@ export function VolleAnalyse({ listing, prijs }: { listing: ListingProps; prijs:
             ]).map(opt => (
               <button key={opt.key} onClick={() => setSelectedDoel(opt.key)}
                 style={{
-                  padding: "28px 20px", background: "#fff", cursor: "pointer", textAlign: "center",
-                  borderRadius: 18, boxShadow: "0 1px 4px rgba(0,0,0,0.07)",
+                  padding: isMobile ? "18px 16px" : "28px 20px", background: "#fff", cursor: "pointer", textAlign: isMobile ? "left" : "center",
+                  borderRadius: 14, boxShadow: "0 1px 4px rgba(0,0,0,0.07)",
                   border: selectedDoel === opt.key ? "2.5px solid #3b82f6" : "1.5px solid #e2e8f0",
-                  outline: "none",
+                  outline: "none", display: isMobile ? "flex" : "block", alignItems: "center", gap: 14,
                 }}>
-                <div style={{ fontSize: 42, marginBottom: 14 }}>{opt.icon}</div>
-                <div style={{ fontSize: 15, fontWeight: 800, color: "#0D1B3E", marginBottom: 8 }}>{opt.label}</div>
-                <div style={{ fontSize: 12, color: "#64748b", lineHeight: 1.65 }}>{opt.sub}</div>
+                <div style={{ fontSize: isMobile ? 28 : 42, marginBottom: isMobile ? 0 : 14, flexShrink: 0 }}>{opt.icon}</div>
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: "#0D1B3E", marginBottom: 4 }}>{opt.label}</div>
+                  <div style={{ fontSize: 12, color: "#64748b", lineHeight: 1.5 }}>{opt.sub}</div>
+                </div>
               </button>
             ))}
           </div>
@@ -202,11 +206,11 @@ export function VolleAnalyse({ listing, prijs }: { listing: ListingProps; prijs:
 
   // Volledige analyse
   return (
-    <div style={{ background: "#f4f5f8", padding: "32px 24px" }}>
+    <div style={{ background: "#f4f5f8", padding: isMobile ? "16px 12px" : "32px 24px" }}>
       <div style={{ maxWidth: 760, margin: "0 auto" }}>
 
         {/* Header */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24, gap: 10 }}>
           <div style={{ fontSize: 16, fontWeight: 800, color: "#0D1B3E" }}>
             {doel === "wonen" ? "🏠 Eigen bewoning" : doel === "verhuren" ? "📈 Verhuur" : "💹 Meerwaarde lange termijn"}
           </div>
@@ -218,7 +222,7 @@ export function VolleAnalyse({ listing, prijs }: { listing: ListingProps; prijs:
 
         {/* ── HYPOTHEEK (altijd) ── */}
         <SectionCard icon="🏦" title="Hypotheekanalyse">
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginBottom: 22 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: isMobile ? 16 : 24, marginBottom: 22 }}>
             <div>
               <div style={{ fontSize: 12, color: "#64748b", marginBottom: 4 }}>Eigen inbreng</div>
               <div style={{ fontSize: 15, fontWeight: 700, color: "#0D1B3E", marginBottom: 10 }}>{eigenInbrengPct}% ({fmt(eigenInbreng)})</div>
@@ -232,7 +236,7 @@ export function VolleAnalyse({ listing, prijs }: { listing: ListingProps; prijs:
                 onChange={e => setLooptijd(+e.target.value)} style={{ width: "100%", accentColor: "#3b82f6" }} />
             </div>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: 10, marginBottom: 16 }}>
             {hypotheekScenarios.map((s, i) => (
               <div key={i} style={{ background: i === 1 ? "#0D1B3E" : "#f8fafc", borderRadius: 14, padding: "18px 14px", textAlign: "center", border: i === 1 ? "none" : "0.5px solid #e8eaf0" }}>
                 <div style={{ fontSize: 12, color: i === 1 ? "#3b82f6" : "#94a3b8", marginBottom: 8, fontWeight: 600 }}>{s.rente}% rente</div>
@@ -297,7 +301,7 @@ export function VolleAnalyse({ listing, prijs }: { listing: ListingProps; prijs:
               <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12 }}>
                 Exploitatiekosten (jaarlijks):
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 18 }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 8, marginBottom: 18 }}>
                 {[
                   { icon: "🔧", label: "Onderhoud & herstellingen", waarde: onderhoud },
                   { icon: "🏢", label: "Syndicus / beheer",         waarde: syndicus  },
@@ -331,7 +335,7 @@ export function VolleAnalyse({ listing, prijs }: { listing: ListingProps; prijs:
             </SectionCard>
 
             <SectionCard icon="📊" title="Rendementsprognose">
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 16 }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: 10, marginBottom: 16 }}>
                 {rendementProjecties.map((p, i) => (
                   <div key={i} style={{ background: i === 1 ? "#0D1B3E" : "#f8fafc", borderRadius: 14, padding: "20px 14px", textAlign: "center", border: i === 1 ? "none" : "0.5px solid #e8eaf0" }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: i === 1 ? "#3b82f6" : "#64748b", marginBottom: 10 }}>Na {p.jaar} jaar</div>
@@ -359,7 +363,7 @@ export function VolleAnalyse({ listing, prijs }: { listing: ListingProps; prijs:
             <div style={{ fontSize: 13, color: "#374151", marginBottom: 18, lineHeight: 1.6 }}>
               Belgisch vastgoed stijgt historisch gemiddeld <strong>2,5% per jaar</strong>. Goed gelegen panden in stedelijk gebied halen 3–4%.
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 18 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: 10, marginBottom: 18 }}>
               {waardeProjecties.map((p, i) => (
                 <div key={i} style={{ background: i === 1 ? "#0D1B3E" : "#f8fafc", borderRadius: 12, padding: "16px 10px", textAlign: "center", border: i === 1 ? "none" : "0.5px solid #e8eaf0" }}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: i === 1 ? "#3b82f6" : "#94a3b8", marginBottom: 6 }}>Na {p.jaar} jaar</div>
