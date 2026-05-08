@@ -62,11 +62,12 @@ export default function Home() {
   const [reportEmail, setReportEmail] = useState("");
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
   const [pdfFilename, setPdfFilename] = useState("property-analyse.pdf");
+  const [reportError, setReportError] = useState<string | null>(null);
 
   async function analyseer() {
     if (!url.trim()) return;
     if (pdfBlobUrl) { URL.revokeObjectURL(pdfBlobUrl); setPdfBlobUrl(null); }
-    setLoading(true); setError(null); setResult(null); setShowVolleAnalyse(false); setShowModal(false); setReportSent(false); setReportEmail("");
+    setLoading(true); setError(null); setResult(null); setShowVolleAnalyse(false); setShowModal(false); setReportSent(false); setReportEmail(""); setReportError(null);
     try {
       const res = await fetch("/api/analyse", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: url.trim() }) });
       const data = await res.json();
@@ -86,6 +87,7 @@ export default function Home() {
   async function handleLeadSubmit(lead: { voornaam: string; achternaam: string; email: string; telefoon: string }) {
     if (!result?.analyse?.prijs || !result?.listing) return;
     setReportSending(true);
+    setReportError(null);
     try {
       const res = await fetch("/api/generate-report", {
         method: "POST",
@@ -93,14 +95,20 @@ export default function Home() {
         body: JSON.stringify({ lead, listing: result.listing, prijs: result.analyse.prijs, url }),
       });
       const data = await res.json();
-      if (data.pdf) {
+      if (!res.ok || data.error) {
+        setReportError(data.error ?? `Server fout (${res.status})`);
+      } else if (data.pdf) {
         const bytes = Uint8Array.from(atob(data.pdf), c => c.charCodeAt(0));
         const blob = new Blob([bytes], { type: "application/pdf" });
         const blobUrl = URL.createObjectURL(blob);
         setPdfBlobUrl(blobUrl);
         setPdfFilename(data.filename ?? "property-analyse.pdf");
+      } else {
+        setReportError("PDF werd niet teruggestuurd door de server.");
       }
-    } catch {}
+    } catch (e) {
+      setReportError(e instanceof Error ? e.message : "Netwerk fout bij PDF generatie");
+    }
     setReportSending(false);
     setReportEmail(lead.email);
     setReportSent(true);
@@ -292,9 +300,20 @@ export default function Home() {
                 </button>
               )}
 
-              {reportSent && (
+              {reportSent && !reportError && (
                 <div style={{ fontSize: 14, color: "#93afd4" }}>
                   ✅ PDF rapport verstuurd naar <strong style={{ color: "#fff" }}>{reportEmail}</strong>
+                </div>
+              )}
+
+              {reportError && (
+                <div style={{ background: "#fee2e2", borderRadius: 10, padding: "12px 16px", maxWidth: 480, margin: "0 auto" }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#991b1b", marginBottom: 4 }}>Fout bij PDF generatie</div>
+                  <div style={{ fontSize: 12, color: "#7f1d1d" }}>{reportError}</div>
+                  <button onClick={() => { setReportSent(false); setReportError(null); setShowModal(true); }}
+                    style={{ marginTop: 10, padding: "8px 16px", fontSize: 12, fontWeight: 700, background: "#991b1b", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer" }}>
+                    Opnieuw proberen
+                  </button>
                 </div>
               )}
             </div>
