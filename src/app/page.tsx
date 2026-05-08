@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { VolleAnalyse } from "./volledige-analyse";
 import { useIsMobile } from "@/lib/use-is-mobile";
+import { LeadCaptureModal } from "@/components/LeadCaptureModal";
 
 interface PrijsAnalyse {
   oordeel: string;
@@ -55,35 +56,44 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [showVolleAnalyse, setShowVolleAnalyse] = useState(false);
   const isMobile = useIsMobile();
-  const [showEmailForm, setShowEmailForm] = useState(false);
-  const [emailInput, setEmailInput] = useState("");
-  const [emailSending, setEmailSending] = useState(false);
-  const [emailSent, setEmailSent] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [reportSent, setReportSent] = useState(false);
+  const [reportSending, setReportSending] = useState(false);
+  const [reportEmail, setReportEmail] = useState("");
 
   async function analyseer() {
     if (!url.trim()) return;
-    setLoading(true); setError(null); setResult(null); setShowVolleAnalyse(false); setShowEmailForm(false); setEmailSent(false); setEmailInput("");
+    setLoading(true); setError(null); setResult(null); setShowVolleAnalyse(false); setShowModal(false); setReportSent(false); setReportEmail("");
     try {
       const res = await fetch("/api/analyse", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: url.trim() }) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Onbekende fout");
       setResult(data);
+      if (data?.analyse?.prijs) {
+        fetch("/api/track-visit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: url.trim(), gemeente: data.analyse.prijs.gemeente, vraagprijs: data.analyse.prijs.vraagprijs, oordeelKleur: data.analyse.prijs.oordeelKleur }),
+        }).catch(() => {});
+      }
     } catch (e) { setError(e instanceof Error ? e.message : "Er ging iets mis"); }
     finally { setLoading(false); }
   }
 
-  async function sendEmail() {
-    if (!emailInput.trim() || !result?.analyse?.prijs || !result?.listing) return;
-    setEmailSending(true);
+  async function handleLeadSubmit(lead: { voornaam: string; achternaam: string; email: string; telefoon: string }) {
+    if (!result?.analyse?.prijs || !result?.listing) return;
+    setReportSending(true);
     try {
-      await fetch("/api/send-rapport", {
+      await fetch("/api/generate-report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: emailInput.trim(), listing: result.listing, prijs: result.analyse.prijs }),
+        body: JSON.stringify({ lead, listing: result.listing, prijs: result.analyse.prijs, url }),
       });
     } catch {}
-    setEmailSending(false);
-    setEmailSent(true);
+    setReportSending(false);
+    setReportEmail(lead.email);
+    setReportSent(true);
+    setShowModal(false);
     setShowVolleAnalyse(true);
   }
 
@@ -258,37 +268,22 @@ export default function Home() {
               );
             })()}
 
-            {/* CTA + Email capture */}
-            <div style={{ background: "linear-gradient(160deg, #0f1d45 0%, #1a3366 100%)", borderRadius: 16, padding: isMobile ? "24px 16px" : "30px 32px", textAlign: "center" }}>
-              <div style={{ fontSize: 22, fontWeight: 800, color: "#fff", marginBottom: 8 }}>Wil je een volledige analyse?</div>
-              <div style={{ fontSize: 14, color: "#93afd4", marginBottom: 22 }}>Renovatiekosten, rentabiliteit, hypotheek en onderhandelingsadvies — gratis in uw mailbox.</div>
+            {/* CTA — PDF Rapport */}
+            <div style={{ background: "linear-gradient(160deg, #0D1B3E 0%, #1a3366 100%)", borderRadius: 16, padding: isMobile ? "24px 16px" : "30px 32px", textAlign: "center" }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: "#E8A020", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 8 }}>Gratis PDF rapport</div>
+              <div style={{ fontSize: isMobile ? 18 : 22, fontWeight: 800, color: "#fff", marginBottom: 8 }}>Download uw volledige analyse</div>
+              <div style={{ fontSize: 14, color: "#93afd4", marginBottom: 22 }}>10 pagina&apos;s: hypotheek, verhuur, renovatie, aankoopkosten — direct in uw mailbox.</div>
 
-              {!showEmailForm && !showVolleAnalyse && (
-                <button onClick={() => setShowEmailForm(true)}
-                  style={{ padding: "15px 40px", fontSize: 15, fontWeight: 700, background: "#fff", color: "#0f1d45", border: "none", borderRadius: 12, cursor: "pointer" }}>
-                  Start volledige analyse →
+              {!reportSent && (
+                <button onClick={() => setShowModal(true)}
+                  style={{ padding: "15px 40px", fontSize: 15, fontWeight: 700, background: "#E8A020", color: "#fff", border: "none", borderRadius: 12, cursor: "pointer", boxShadow: "0 4px 14px rgba(232,160,32,0.4)" }}>
+                  Download PDF Rapport →
                 </button>
               )}
 
-              {showEmailForm && !emailSent && (
-                <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: 10, maxWidth: 460, margin: "0 auto" }}>
-                  <input
-                    type="email" value={emailInput}
-                    onChange={e => setEmailInput(e.target.value)}
-                    onKeyDown={e => e.key === "Enter" && sendEmail()}
-                    placeholder="uw@emailadres.be"
-                    style={{ flex: 1, padding: "14px 16px", fontSize: 14, borderRadius: 10, border: "none", outline: "none", color: "#0f172a" }}
-                  />
-                  <button onClick={sendEmail} disabled={emailSending || !emailInput.trim()}
-                    style={{ padding: "14px 22px", fontSize: 14, fontWeight: 700, background: emailSending ? "#64748b" : "#3b82f6", color: "#fff", border: "none", borderRadius: 10, cursor: emailSending ? "not-allowed" : "pointer", whiteSpace: "nowrap" }}>
-                    {emailSending ? "Versturen..." : "Ontvang analyse →"}
-                  </button>
-                </div>
-              )}
-
-              {emailSent && (
+              {reportSent && (
                 <div style={{ fontSize: 14, color: "#93afd4" }}>
-                  ✅ Analyse verstuurd naar <strong style={{ color: "#fff" }}>{emailInput}</strong>
+                  ✅ PDF rapport verstuurd naar <strong style={{ color: "#fff" }}>{reportEmail}</strong>
                 </div>
               )}
             </div>
@@ -300,6 +295,15 @@ export default function Home() {
       {/* Volledige analyse */}
       {result && prijs && listing && showVolleAnalyse && (
         <VolleAnalyse listing={listing} prijs={prijs} />
+      )}
+
+      {/* Lead capture modal */}
+      {showModal && (
+        <LeadCaptureModal
+          onClose={() => setShowModal(false)}
+          onSuccess={handleLeadSubmit}
+          loading={reportSending}
+        />
       )}
 
       {/* Footer */}

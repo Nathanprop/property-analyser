@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
+import { supabase } from "@/lib/supabase";
 
 const LEAD_INBOX = "nathan@thynk-agency.com";
 
@@ -97,7 +98,7 @@ function buildEmail(email: string, listing: Record<string, unknown>, prijs: Reco
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { email, listing, prijs } = body;
+    const { email, telefoon, listing, prijs, url } = body;
 
     if (!email || !listing || !prijs) {
       return NextResponse.json({ error: "Ontbrekende velden" }, { status: 400 });
@@ -107,19 +108,32 @@ export async function POST(req: NextRequest) {
     const { adres, gemeente, html } = buildEmail(email, listing, prijs);
     const subject = `Uw property analyse — ${adres}, ${gemeente}`;
 
-    await resend.emails.send({
-      from: "Property Analyser <analyse@thynk-agency.com>",
-      to: email,
-      subject,
-      html,
-    });
-
-    await resend.emails.send({
-      from: "Property Analyser <analyse@thynk-agency.com>",
-      to: LEAD_INBOX,
-      subject: `🔔 Nieuwe lead: ${email} — ${adres}, ${gemeente}`,
-      html: `<p><strong>Lead email:</strong> ${email}</p><p><strong>Pand:</strong> ${adres}, ${gemeente}</p><p><strong>Vraagprijs:</strong> ${fmt(prijs.vraagprijs)}</p><p><strong>Oordeel:</strong> ${prijs.oordeelLabel} (${prijs.verschilPercent > 0 ? "+" : ""}${prijs.verschilPercent}%)</p>` + html,
-    });
+    await Promise.all([
+      resend.emails.send({
+        from: "Property Analyser <analyse@thynk-agency.com>",
+        to: email,
+        subject,
+        html,
+      }),
+      resend.emails.send({
+        from: "Property Analyser <analyse@thynk-agency.com>",
+        to: LEAD_INBOX,
+        subject: `🔔 Nieuwe lead: ${email} — ${adres}, ${gemeente}`,
+        html: `<p><strong>Lead email:</strong> ${email}</p>${telefoon ? `<p><strong>Telefoon:</strong> ${telefoon}</p>` : ""}<p><strong>Pand:</strong> ${adres}, ${gemeente}</p><p><strong>Vraagprijs:</strong> ${fmt(prijs.vraagprijs)}</p><p><strong>Oordeel:</strong> ${prijs.oordeelLabel} (${prijs.verschilPercent > 0 ? "+" : ""}${prijs.verschilPercent}%)</p>` + html,
+      }),
+      supabase.from("leads").insert({
+        email,
+        telefoon: telefoon ?? null,
+        adres,
+        gemeente,
+        vraagprijs: prijs.vraagprijs,
+        marktwaarde: prijs.marktconformePrijs,
+        oordeel: prijs.oordeelLabel,
+        oordeel_kleur: prijs.oordeelKleur,
+        verschil_percent: prijs.verschilPercent,
+        url: url ?? null,
+      }),
+    ]);
 
     return NextResponse.json({ ok: true });
   } catch (err) {
