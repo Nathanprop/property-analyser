@@ -60,9 +60,12 @@ export default function Home() {
   const [reportSent, setReportSent] = useState(false);
   const [reportSending, setReportSending] = useState(false);
   const [reportEmail, setReportEmail] = useState("");
+  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
+  const [pdfFilename, setPdfFilename] = useState("property-analyse.pdf");
 
   async function analyseer() {
     if (!url.trim()) return;
+    if (pdfBlobUrl) { URL.revokeObjectURL(pdfBlobUrl); setPdfBlobUrl(null); }
     setLoading(true); setError(null); setResult(null); setShowVolleAnalyse(false); setShowModal(false); setReportSent(false); setReportEmail("");
     try {
       const res = await fetch("/api/analyse", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: url.trim() }) });
@@ -84,11 +87,19 @@ export default function Home() {
     if (!result?.analyse?.prijs || !result?.listing) return;
     setReportSending(true);
     try {
-      await fetch("/api/generate-report", {
+      const res = await fetch("/api/generate-report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ lead, listing: result.listing, prijs: result.analyse.prijs, url }),
       });
+      const data = await res.json();
+      if (data.pdf) {
+        const bytes = Uint8Array.from(atob(data.pdf), c => c.charCodeAt(0));
+        const blob = new Blob([bytes], { type: "application/pdf" });
+        const blobUrl = URL.createObjectURL(blob);
+        setPdfBlobUrl(blobUrl);
+        setPdfFilename(data.filename ?? "property-analyse.pdf");
+      }
     } catch {}
     setReportSending(false);
     setReportEmail(lead.email);
@@ -288,6 +299,39 @@ export default function Home() {
               )}
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* PDF Viewer */}
+      {pdfBlobUrl && (
+        <div style={{ background: "#f4f5f8", padding: isMobile ? "12px" : "24px" }}>
+          <div style={{ maxWidth: 760, margin: "0 auto" }}>
+            <div style={{ background: "#fff", borderRadius: 16, overflow: "hidden", border: "1px solid #e2e8f0", boxShadow: "0 4px 16px rgba(0,0,0,0.08)" }}>
+              {/* Toolbar */}
+              <div style={{ background: "#0D1B3E", padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>Uw PDF Rapport</div>
+                  <div style={{ fontSize: 11, color: "#93afd4", marginTop: 2 }}>verstuurd naar {reportEmail}</div>
+                </div>
+                <a href={pdfBlobUrl} download={pdfFilename}
+                  style={{ padding: "9px 18px", background: "#E8A020", color: "#fff", borderRadius: 8, fontSize: 13, fontWeight: 700, textDecoration: "none", whiteSpace: "nowrap" }}>
+                  ⬇ Download PDF
+                </a>
+              </div>
+              {/* Iframe viewer */}
+              {!isMobile ? (
+                <iframe src={pdfBlobUrl} style={{ width: "100%", height: 800, border: "none", display: "block" }} title="PDF Rapport" />
+              ) : (
+                <div style={{ padding: "20px 16px", textAlign: "center" }}>
+                  <div style={{ fontSize: 13, color: "#64748b", marginBottom: 14 }}>PDF is verstuurd naar uw mailbox. Op mobiel kan u de PDF downloaden via onderstaande knop.</div>
+                  <a href={pdfBlobUrl} download={pdfFilename}
+                    style={{ display: "inline-block", padding: "14px 28px", background: "#E8A020", color: "#fff", borderRadius: 10, fontSize: 14, fontWeight: 700, textDecoration: "none" }}>
+                    ⬇ Download PDF Rapport
+                  </a>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

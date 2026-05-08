@@ -67,20 +67,23 @@ export async function POST(req: NextRequest) {
 </body>
 </html>`;
 
-    await Promise.all([
+    const filename = `property-analyse-${gemeente.toLowerCase().replace(/\s+/g, "-")}.pdf`;
+
+    // Fire-and-forget: email + Supabase don't block the PDF response
+    Promise.all([
       resend.emails.send({
         from: "Property Analyser <analyse@thynk-agency.com>",
         to: lead.email,
         subject: `Uw Property Analyser rapport — ${adres}, ${gemeente}`,
         html: htmlEmail,
-        attachments: [{ filename: `property-analyse-${gemeente.toLowerCase().replace(/\s+/g, "-")}.pdf`, content: pdfBase64 }],
+        attachments: [{ filename, content: pdfBase64 }],
       }),
       resend.emails.send({
         from: "Property Analyser <analyse@thynk-agency.com>",
         to: "nathan@thynk-agency.com",
         subject: `🔔 Nieuwe lead: ${lead.voornaam} ${lead.achternaam} — ${adres}, ${gemeente}`,
         html: `<p><strong>Naam:</strong> ${lead.voornaam} ${lead.achternaam}</p><p><strong>Email:</strong> ${lead.email}</p><p><strong>Telefoon:</strong> ${lead.telefoon}</p><p><strong>Pand:</strong> ${adres}, ${gemeente}</p><p><strong>Vraagprijs:</strong> € ${prijs.vraagprijs.toLocaleString("nl-BE")}</p><p><strong>Oordeel:</strong> ${prijs.oordeelLabel} (${prijs.verschilPercent > 0 ? "+" : ""}${prijs.verschilPercent}%)</p>`,
-        attachments: [{ filename: `property-analyse-${gemeente.toLowerCase().replace(/\s+/g, "-")}.pdf`, content: pdfBase64 }],
+        attachments: [{ filename, content: pdfBase64 }],
       }),
       supabase.from("leads").insert({
         email: lead.email,
@@ -96,9 +99,10 @@ export async function POST(req: NextRequest) {
         verschil_percent: prijs.verschilPercent,
         url: url ?? null,
       }),
-    ]);
+    ]).catch(err => console.error("Email/Supabase fout (niet-blokkerend):", err));
 
-    return NextResponse.json({ ok: true });
+    // Return PDF directly so browser can display it immediately
+    return NextResponse.json({ ok: true, pdf: pdfBase64, filename });
   } catch (err) {
     console.error("generate-report fout:", err);
     return NextResponse.json({ error: "Rapport kon niet worden gegenereerd" }, { status: 500 });
